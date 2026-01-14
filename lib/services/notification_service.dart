@@ -3,6 +3,7 @@ import 'package:medicify/models/medicine.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 class NotificationService {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -18,6 +19,8 @@ class NotificationService {
 
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
     tz.initializeTimeZones();
+    final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
     await _requestNotificationPermissions();
   }
 
