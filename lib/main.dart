@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -8,27 +7,18 @@ import 'package:medicify/services/notification_service.dart';
 import 'package:medicify/ui/screens/home_screen.dart';
 
 void main() async {
-  runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    await Hive.initFlutter();
-    Hive.registerAdapter(MedicineAdapter());
-    final notificationService = NotificationService();
-    try {
-      await notificationService.init();
-    } catch (e) {
-      debugPrint('Error initializing notification service: $e');
-    }
-    try {
-      await notificationService.configureTimezone();
-    } catch (e) {
-      debugPrint('Error configuring timezone: $e');
-    }
+  // This is the correct, simplified initialization sequence.
+  WidgetsFlutterBinding.ensureInitialized();
 
-    runApp(MyApp(notificationService: notificationService));
-  }, (error, stack) {
-    debugPrint('Uncaught error: $error');
-    debugPrint(stack.toString());
-  });
+  // 1. Initialize Database first.
+  await Hive.initFlutter();
+  Hive.registerAdapter(MedicineAdapter());
+
+  // 2. Initialize Notification Service (lightweight part only).
+  final notificationService = NotificationService();
+  await notificationService.init();
+
+  runApp(MyApp(notificationService: notificationService));
 }
 
 class MyApp extends StatelessWidget {
@@ -40,13 +30,15 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) =>
-          MedicinesBloc(notificationService)..add(LoadMedicines()),
+      MedicinesBloc(notificationService)..add(LoadMedicines()),
       child: MaterialApp(
         title: 'Medicify',
         theme: ThemeData(
           primarySwatch: Colors.teal,
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
+        // The time-consuming setup for timezone and permissions
+        // is now correctly handled inside the HomeScreen after the app starts.
         home: HomeScreen(notificationService: notificationService),
       ),
     );

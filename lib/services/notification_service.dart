@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:medicify/models/medicine.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -19,37 +18,18 @@ class NotificationService {
       android: initializationSettingsAndroid,
     );
 
-    await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) async {
-        // Handle notification tap
-      },
-    );
-    await createNotificationChannel();
-  }
-
-  Future<void> configureTimezone() async {
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
     tz.initializeTimeZones();
-    try {
-      final String timeZoneName =
-          (await FlutterTimezone.getLocalTimezone()).toString();
-      try {
-        tz.setLocalLocation(tz.getLocation(timeZoneName));
-      } catch (e) {
-        debugPrint('Error setting local location: $e');
-        tz.setLocalLocation(tz.getLocation('UTC'));
-      }
-    } catch (e) {
-      debugPrint('Error getting local timezone: $e');
-      tz.setLocalLocation(tz.getLocation('UTC'));
-    }
+    final String timeZoneName =
+        (await FlutterTimezone.getLocalTimezone()) as String;
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
+    await requestPermissions();
   }
 
   Future<void> requestPermissions() async {
     final androidImplementation =
         flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
-
     if (androidImplementation != null) {
       await androidImplementation.requestNotificationsPermission();
     }
@@ -72,51 +52,27 @@ class NotificationService {
     const NotificationDetails notificationDetails = NotificationDetails(
       android: androidNotificationDetails,
     );
-    final scheduledDate = _nextInstanceOfTime(medicine.time);
-
-    try {
-      await flutterLocalNotificationsPlugin.zonedSchedule(
-        medicine.key as int,
-        'Time for your medicine!',
-        'Take your ${medicine.name} (${medicine.dose})',
-        scheduledDate,
-        notificationDetails,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        matchDateTimeComponents: DateTimeComponents.time,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      );
-    } catch (e) {
-      debugPrint('ERROR SCHEDULING NOTIFICATION: $e');
-    }
-  }
-
-  Future<void> createNotificationChannel() async {
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'medicify_channel', // id
-      'Medicify', // title
-      description: 'Channel for medicine reminders',
-      importance: Importance.max,
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      medicine.hashCode,
+      'Time for your medicine!',
+      'Take your ${medicine.name} (${medicine.dose})',
+      _nextInstanceOfTime(medicine.time),
+      notificationDetails,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+      androidScheduleMode: AndroidScheduleMode.exact,
     );
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
   }
 
   Future<void> cancelNotification(Medicine medicine) async {
-    await flutterLocalNotificationsPlugin.cancel(medicine.key as int);
+    await flutterLocalNotificationsPlugin.cancel(medicine.hashCode);
   }
 
   tz.TZDateTime _nextInstanceOfTime(DateTime time) {
-    // Current time in the configured local timezone
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-
-    // Convert the incoming DateTime (which represents the target time on the current day)
-    // to the configured local timezone, preserving the exact instant in time.
-    tz.TZDateTime scheduledDate = tz.TZDateTime.from(time, tz.local);
-
-    // If the scheduled time is in the past, assume it's for tomorrow
+    tz.TZDateTime scheduledDate = tz.TZDateTime(
+        tz.local, now.year, now.month, now.day, time.hour, time.minute);
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
