@@ -1,15 +1,16 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:medicify/models/medicine.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:flutter_timezone/flutter_timezone.dart';
 
 class NotificationService {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  Future<void> init() async {
+  /// Initializes the notification plugin. This is a lightweight, synchronous operation.
+  void init() {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -18,25 +19,25 @@ class NotificationService {
       android: initializationSettingsAndroid,
     );
 
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-    tz.initializeTimeZones();
-    String timeZoneName;
-    try {
-      final dynamic result = await FlutterTimezone.getLocalTimezone();
-      timeZoneName = result.toString();
-    } catch (e) {
-      timeZoneName = 'UTC';
-    }
-
-    try {
-      tz.setLocalLocation(tz.getLocation(timeZoneName));
-    } catch (e) {
-      tz.setLocalLocation(tz.getLocation('UTC'));
-    }
-    // await requestPermissions(); // Moved to HomeScreen
+    // This is not awaited, as it should run in the background.
+    flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
-  Future<void> requestPermissions() async {
+  /// Handles the heavy, asynchronous setup for timezones and permissions.
+  /// This should be called after the app's UI is visible.
+  Future<void> setup() async {
+    await _configureTimezone();
+    await _requestPermissions();
+  }
+
+  Future<void> _configureTimezone() async {
+    tz.initializeTimeZones();
+    final String timeZoneName =
+        (await FlutterTimezone.getLocalTimezone()) as String;
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
+  }
+
+  Future<void> _requestPermissions() async {
     final androidImplementation =
         flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
@@ -62,8 +63,12 @@ class NotificationService {
     const NotificationDetails notificationDetails = NotificationDetails(
       android: androidNotificationDetails,
     );
+
+    // Use the database key for a reliable, unique ID.
+    final id = medicine.key as int;
+
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      medicine.hashCode,
+      id,
       'Time for your medicine!',
       'Take your ${medicine.name} (${medicine.dose})',
       _nextInstanceOfTime(medicine.time),
@@ -76,7 +81,9 @@ class NotificationService {
   }
 
   Future<void> cancelNotification(Medicine medicine) async {
-    await flutterLocalNotificationsPlugin.cancel(medicine.hashCode);
+    // Use the same database key to cancel the notification.
+    final id = medicine.key as int;
+    await flutterLocalNotificationsPlugin.cancel(id);
   }
 
   tz.TZDateTime _nextInstanceOfTime(DateTime time) {
@@ -93,7 +100,6 @@ class NotificationService {
 
     // Convert the local DateTime to the target timezone (tz.local), preserving absolute execution time
     tz.TZDateTime scheduledDate = tz.TZDateTime.from(targetDate, tz.local);
-
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }

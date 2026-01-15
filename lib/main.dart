@@ -7,16 +7,15 @@ import 'package:medicify/services/notification_service.dart';
 import 'package:medicify/ui/screens/home_screen.dart';
 
 void main() async {
-  // This is the correct, simplified initialization sequence.
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Initialize Database first.
+  // 1. Initialize the database.
   await Hive.initFlutter();
   Hive.registerAdapter(MedicineAdapter());
 
-  // 2. Initialize Notification Service (lightweight part only).
+  // 2. Initialize the notification service (lightweight part).
   final notificationService = NotificationService();
-  await notificationService.init();
+  notificationService.init(); // This is now a non-blocking call.
 
   runApp(MyApp(notificationService: notificationService));
 }
@@ -30,15 +29,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) =>
-      MedicinesBloc(notificationService)..add(LoadMedicines()),
+          MedicinesBloc(notificationService)..add(LoadMedicines()),
       child: MaterialApp(
         title: 'Medicify',
         theme: ThemeData(
           primarySwatch: Colors.teal,
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
-        // The time-consuming setup for timezone and permissions
-        // is now correctly handled inside the HomeScreen after the app starts.
         home: HomeScreen(notificationService: notificationService),
       ),
     );

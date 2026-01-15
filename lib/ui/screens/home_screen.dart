@@ -17,13 +17,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Defer the heavy setup until after the first frame is rendered.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _configureApp();
+      // This is the new, correct way to handle the setup.
+      widget.notificationService.setup();
     });
-  }
-
-  Future<void> _configureApp() async {
-    await widget.notificationService.requestPermissions();
   }
 
   @override
