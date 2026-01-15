@@ -1,10 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:medicify/bloc/medicines_bloc.dart';
+import 'package:medicify/services/notification_service.dart';
 import 'package:medicify/ui/screens/add_medicine_screen.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key, required this.notificationService});
+
+  final NotificationService notificationService;
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _configureApp();
+    });
+  }
+
+  Future<void> _configureApp() async {
+    await widget.notificationService.requestPermissions();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,11 +49,14 @@ class HomeScreen extends StatelessWidget {
                 final medicine = state.medicines[index];
                 return ListTile(
                   title: Text(medicine.name),
-                  subtitle: Text('${medicine.dose} - ${medicine.time.hour}:${medicine.time.minute}'),
+                  subtitle: Text(
+                      '${medicine.dose} - ${medicine.time.hour}:${medicine.time.minute}'),
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
+                    icon: const Icon(Icons.delete, color: Colors.orange),
                     onPressed: () {
-                      context.read<MedicinesBloc>().add(DeleteMedicine(medicine));
+                      context
+                          .read<MedicinesBloc>()
+                          .add(DeleteMedicine(medicine));
                     },
                   ),
                 );
@@ -52,7 +75,9 @@ class HomeScreen extends StatelessWidget {
           );
 
           if (result == true) {
-            context.read<MedicinesBloc>().add(LoadMedicines());
+            if (context.mounted) {
+              context.read<MedicinesBloc>().add(LoadMedicines());
+            }
           }
         },
         backgroundColor: Colors.orange,

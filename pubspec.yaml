@@ -39,6 +39,8 @@ dependencies:
   path_provider: ^2.0.11
   timezone: ^0.9.3
   permission_handler: ^11.0.1
+  flutter_timezone: ^5.0.1
+
 
 dev_dependencies:
   flutter_test:

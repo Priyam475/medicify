@@ -31,8 +31,8 @@ class MedicinesBloc extends Bloc<MedicinesEvent, MedicinesState> {
   Future<void> _onAddMedicine(
       AddMedicine event, Emitter<MedicinesState> emit) async {
     final box = await Hive.openBox<Medicine>('medicines');
-    final key = await box.add(event.medicine);
-    final managedMedicine = box.get(key);
+    final int key = await box.add(event.medicine);
+    final Medicine? managedMedicine = box.get(key);
 
     if (managedMedicine != null) {
       await _notificationService.scheduleNotification(managedMedicine);
