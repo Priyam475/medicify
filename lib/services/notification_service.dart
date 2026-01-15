@@ -20,10 +20,20 @@ class NotificationService {
 
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
     tz.initializeTimeZones();
-    final String timeZoneName =
-        (await FlutterTimezone.getLocalTimezone()) as String;
-    tz.setLocalLocation(tz.getLocation(timeZoneName));
-    await requestPermissions();
+    String timeZoneName;
+    try {
+      final dynamic result = await FlutterTimezone.getLocalTimezone();
+      timeZoneName = result.toString();
+    } catch (e) {
+      timeZoneName = 'UTC';
+    }
+
+    try {
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (e) {
+      tz.setLocalLocation(tz.getLocation('UTC'));
+    }
+    // await requestPermissions(); // Moved to HomeScreen
   }
 
   Future<void> requestPermissions() async {
@@ -71,8 +81,19 @@ class NotificationService {
 
   tz.TZDateTime _nextInstanceOfTime(DateTime time) {
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-    tz.TZDateTime scheduledDate = tz.TZDateTime(
-        tz.local, now.year, now.month, now.day, time.hour, time.minute);
+    // Create a generic DateTime for the target time today, using device local time context
+    final DateTime deviceNow = DateTime.now();
+    final DateTime targetDate = DateTime(
+      deviceNow.year,
+      deviceNow.month,
+      deviceNow.day,
+      time.hour,
+      time.minute,
+    );
+
+    // Convert the local DateTime to the target timezone (tz.local), preserving absolute execution time
+    tz.TZDateTime scheduledDate = tz.TZDateTime.from(targetDate, tz.local);
+
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
